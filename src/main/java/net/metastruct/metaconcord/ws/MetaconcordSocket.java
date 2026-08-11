@@ -174,8 +174,11 @@ public class MetaconcordSocket implements WebSocket.Listener {
 		String content = data.get("content").getAsString();
 
 		Style nameStyle = Style.EMPTY.withColor(TextColor.fromRgb(color != 0 ? color : 0xFFFFFF));
-		MutableComponent component = Component.literal("[Discord] ")
-			.withStyle(Style.EMPTY.withColor(TextColor.fromRgb(DISCORD_BLURPLE)));
+		// unstyled root: appended children inherit the root's style, so every
+		// part must carry its own color instead of the root carrying blurple
+		MutableComponent component = Component.empty()
+			.append(Component.literal("[Discord] ")
+				.withStyle(Style.EMPTY.withColor(TextColor.fromRgb(DISCORD_BLURPLE))));
 
 		if (data.has("replied_message")) {
 			JsonObject reply = data.getAsJsonObject("replied_message");
