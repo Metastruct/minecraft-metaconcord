@@ -1,0 +1,49 @@
+package net.metastruct.metaconcord.payload;
+
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
+
+/**
+ * Wire frames for the metaconcord bridge.
+ * Outbound: {"name": "<PayloadName>", "data": {...}}
+ * Inbound: {"payload": {"name": "<PayloadName>", "data": {...}}}
+ */
+public final class Payloads {
+	private static final Gson GSON = new Gson();
+
+	private Payloads() {}
+
+	private static JsonObject player(String nick, String uuid) {
+		JsonObject player = new JsonObject();
+		player.addProperty("nick", nick);
+		player.addProperty("uuid", uuid);
+		return player;
+	}
+
+	private static String frame(String name, JsonObject data) {
+		JsonObject frame = new JsonObject();
+		frame.addProperty("name", name);
+		frame.add("data", data);
+		return GSON.toJson(frame);
+	}
+
+	public static String chat(String nick, String uuid, String content) {
+		JsonObject data = new JsonObject();
+		data.add("player", player(nick, uuid));
+		data.addProperty("content", content.length() > 2000 ? content.substring(0, 2000) : content);
+		return frame("ChatPayload", data);
+	}
+
+	public static String join(String nick, String uuid) {
+		JsonObject data = new JsonObject();
+		data.add("player", player(nick, uuid));
+		data.addProperty("spawned", true);
+		return frame("JoinLeavePayload", data);
+	}
+
+	public static String leave(String nick, String uuid) {
+		JsonObject data = new JsonObject();
+		data.add("player", player(nick, uuid));
+		return frame("JoinLeavePayload", data);
+	}
+}
