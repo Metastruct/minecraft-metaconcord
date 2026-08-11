@@ -32,6 +32,7 @@ public class ChatRelay {
 		socket.send(Payloads.join(
 			player.getGameProfile().getName(),
 			player.getUUID().toString()));
+		socket.sendStatusSoon();
 	}
 
 	@SubscribeEvent
@@ -40,5 +41,6 @@ public class ChatRelay {
 		socket.send(Payloads.leave(
 			player.getGameProfile().getName(),
 			player.getUUID().toString()));
+		socket.sendStatusSoon();
 	}
 }

@@ -1,7 +1,10 @@
 package net.metastruct.metaconcord.payload;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerPlayer;
 
 /**
  * Wire frames for the metaconcord bridge.
@@ -45,5 +48,20 @@ public final class Payloads {
 		JsonObject data = new JsonObject();
 		data.add("player", player(nick, uuid));
 		return frame("JoinLeavePayload", data);
+	}
+
+	/** Must be called on the server thread. */
+	public static String status(MinecraftServer server) {
+		JsonObject data = new JsonObject();
+		data.addProperty("hostname", server.getMotd());
+		data.addProperty("version", server.getServerVersion());
+		data.addProperty("maxPlayers", server.getMaxPlayers());
+		data.addProperty("uptime", server.getTickCount() / 20);
+		JsonArray players = new JsonArray();
+		for (ServerPlayer p : server.getPlayerList().getPlayers()) {
+			players.add(player(p.getGameProfile().getName(), p.getUUID().toString()));
+		}
+		data.add("players", players);
+		return frame("StatusPayload", data);
 	}
 }

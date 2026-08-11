@@ -10,6 +10,8 @@ import net.minecraft.network.chat.TextColor;
 import net.minecraft.server.MinecraftServer;
 import org.slf4j.Logger;
 
+import net.metastruct.metaconcord.payload.Payloads;
+
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.WebSocket;
@@ -20,6 +22,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class MetaconcordSocket implements WebSocket.Listener {
 	public static final Logger LOGGER = LogUtils.getLogger();
@@ -46,6 +49,7 @@ public class MetaconcordSocket implements WebSocket.Listener {
 	private volatile WebSocket webSocket;
 	private volatile boolean shuttingDown = false;
 	private volatile boolean reconnectScheduled = false;
+	private final AtomicBoolean statusQueued = new AtomicBoolean(false);
 	private int backoff = 0;
 	private ScheduledFuture<?> heartbeat;
 
@@ -89,6 +93,23 @@ public class MetaconcordSocket implements WebSocket.Listener {
 		}
 	}
 
+	/**
+	 * Sends a StatusPayload snapshot after a short debounce, so bursts of
+	 * joins/leaves collapse into one update. The snapshot is taken on the
+	 * server thread.
+	 */
+	public void sendStatusSoon() {
+		if (shuttingDown || !statusQueued.compareAndSet(false, true)) return;
+		try {
+			scheduler.schedule(() -> {
+				statusQueued.set(false);
+				server.execute(() -> send(Payloads.status(server)));
+			}, 1, TimeUnit.SECONDS);
+		} catch (Exception ignored) {
+			statusQueued.set(false);
+		}
+	}
+
 	private void scheduleReconnect() {
 		if (shuttingDown || reconnectScheduled) return;
 		reconnectScheduled = true;
@@ -120,6 +141,7 @@ public class MetaconcordSocket implements WebSocket.Listener {
 		heartbeat = scheduler.scheduleAtFixedRate(
 			() -> send(""), HEARTBEAT_SECONDS, HEARTBEAT_SECONDS, TimeUnit.SECONDS);
 		LOGGER.info("metaconcord connected to {}", endpoint);
+		sendStatusSoon();
 		ws.request(1);
 	}
 
