@@ -23,7 +23,7 @@ public final class Payloads {
 		return player;
 	}
 
-	private static String frame(String name, JsonObject data) {
+	static String frame(String name, JsonObject data) {
 		JsonObject frame = new JsonObject();
 		frame.addProperty("name", name);
 		frame.add("data", data);

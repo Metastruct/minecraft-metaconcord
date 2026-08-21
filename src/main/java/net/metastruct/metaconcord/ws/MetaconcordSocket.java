@@ -10,6 +10,7 @@ import net.minecraft.network.chat.TextColor;
 import net.minecraft.server.MinecraftServer;
 import org.slf4j.Logger;
 
+import net.metastruct.metaconcord.payload.ModInventory;
 import net.metastruct.metaconcord.payload.Payloads;
 
 import java.net.URI;
@@ -110,6 +111,25 @@ public class MetaconcordSocket implements WebSocket.Listener {
 		}
 	}
 
+	/**
+	 * Sends the AddonsPayload once the status is through. Hashing every jar is
+	 * slow the first time, so it runs on the socket thread, never the server thread.
+	 */
+	private void sendAddonsSoon() {
+		if (shuttingDown) return;
+		try {
+			scheduler.schedule(() -> {
+				try {
+					send(ModInventory.frame());
+				} catch (Exception e) {
+					LOGGER.warn("could not build AddonsPayload", e);
+				}
+			}, 5, TimeUnit.SECONDS);
+		} catch (Exception ignored) {
+			// scheduler shut down
+		}
+	}
+
 	private void scheduleReconnect() {
 		if (shuttingDown || reconnectScheduled) return;
 		reconnectScheduled = true;
@@ -142,6 +162,7 @@ public class MetaconcordSocket implements WebSocket.Listener {
 			() -> send(""), HEARTBEAT_SECONDS, HEARTBEAT_SECONDS, TimeUnit.SECONDS);
 		LOGGER.info("metaconcord connected to {}", endpoint);
 		sendStatusSoon();
+		sendAddonsSoon();
 		ws.request(1);
 	}
 
