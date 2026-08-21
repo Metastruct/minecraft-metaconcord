@@ -30,11 +30,37 @@ public final class Payloads {
 		return GSON.toJson(frame);
 	}
 
-	public static String chat(String nick, String uuid, String content) {
+	/** Limits mirror Discord's own field limits, so the bridge can relay verbatim. */
+	private static String truncate(String value, int max) {
+		return value.length() > max ? value.substring(0, max) : value;
+	}
+
+	/** {@code emote} marks a /me action, rendered italic instead of as a normal line. */
+	public static String chat(String nick, String uuid, String content, boolean emote) {
 		JsonObject data = new JsonObject();
 		data.add("player", player(nick, uuid));
-		data.addProperty("content", content.length() > 2000 ? content.substring(0, 2000) : content);
+		data.addProperty("content", truncate(content, 2000));
+		if (emote) data.addProperty("emote", true);
 		return frame("ChatPayload", data);
+	}
+
+	/** {@code message} is the vanilla death message, e.g. "Nick was slain by Zombie". */
+	public static String death(String nick, String uuid, String message) {
+		JsonObject data = new JsonObject();
+		data.add("player", player(nick, uuid));
+		data.addProperty("message", truncate(message, 256));
+		return frame("DeathPayload", data);
+	}
+
+	/** {@code type} is the advancement frame: task, goal or challenge. */
+	public static String advancement(
+		String nick, String uuid, String title, String description, String type) {
+		JsonObject data = new JsonObject();
+		data.add("player", player(nick, uuid));
+		data.addProperty("title", truncate(title, 256));
+		data.addProperty("description", truncate(description, 1000));
+		data.addProperty("type", type);
+		return frame("AdvancementPayload", data);
 	}
 
 	public static String join(String nick, String uuid) {
