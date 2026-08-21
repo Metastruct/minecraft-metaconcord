@@ -1,10 +1,11 @@
 # minecraft-metaconcord
 
-Server-side NeoForge mod (Minecraft 1.21.1) that relays chat and join/leave events to the [metaconcord](https://github.com/metastruct/metaconcord) bridge over WebSocket. Counterpart of [gmod-metaconcord](https://github.com/Earu/gmod-metaconcord).
+Server-side NeoForge mod (Minecraft 1.21.1) that relays chat and player events to the [metaconcord](https://github.com/metastruct/metaconcord) bridge over WebSocket. Counterpart of [gmod-metaconcord](https://github.com/Earu/gmod-metaconcord).
 
 ## What it does
 
-- Player chat, joins and leaves are sent to the bridge (`/minecraft/ws` endpoint), which posts them to Discord.
+- Player chat, `/me` emotes, joins, leaves, deaths and earned advancements are sent to the bridge (`/minecraft/ws` endpoint), which posts them to Discord.
+- Deaths and advancements follow the vanilla rules: they are only relayed when `showDeathMessages` / `announceAdvancements` is on and the advancement would be announced in chat.
 - Messages from the dedicated Discord channel are broadcast in-game as `[Discord] Name: message`.
 
 ## Install

@@ -6,7 +6,7 @@ license = "MIT"
 modId = "metaconcord"
 version = "${mod_version}"
 displayName = "Metaconcord"
-description = "Relays chat and join/leave events to the metaconcord Discord bridge."
+description = "Relays chat and player events to the metaconcord Discord bridge."
 # server-side only: clients without the mod can join just fine
 displayTest = "IGNORE_SERVER_VERSION"
 
