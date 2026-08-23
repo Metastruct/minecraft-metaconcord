@@ -10,8 +10,10 @@ import net.minecraft.network.chat.TextColor;
 import net.minecraft.server.MinecraftServer;
 import org.slf4j.Logger;
 
+import net.metastruct.metaconcord.console.ConsoleRelay;
 import net.metastruct.metaconcord.payload.ModInventory;
 import net.metastruct.metaconcord.payload.Payloads;
+import net.metastruct.metaconcord.stats.StatsCollector;
 
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -31,6 +33,8 @@ public class MetaconcordSocket implements WebSocket.Listener {
 	private static final int DISCORD_BLURPLE = 0x5865F2;
 	private static final long HEARTBEAT_SECONDS = 10;
 	private static final long MAX_BACKOFF_SECONDS = 300;
+	private static final long STATS_SECONDS = 5;
+	private static final long CONSOLE_FLUSH_MILLIS = 250;
 
 	private final MinecraftServer server;
 	private final URI endpoint;
@@ -53,11 +57,18 @@ public class MetaconcordSocket implements WebSocket.Listener {
 	private final AtomicBoolean statusQueued = new AtomicBoolean(false);
 	private int backoff = 0;
 	private ScheduledFuture<?> heartbeat;
+	private ScheduledFuture<?> statsTick;
+	private ScheduledFuture<?> consoleTick;
+	private final ConsoleRelay console;
+	private final StatsCollector stats;
 
 	public MetaconcordSocket(MinecraftServer server, String endpoint, String token) {
 		this.server = server;
 		this.endpoint = URI.create(endpoint);
 		this.token = token;
+		this.stats = new StatsCollector(server);
+		this.console = new ConsoleRelay();
+		this.console.attach(this::send);
 	}
 
 	public void connect() {
@@ -75,6 +86,7 @@ public class MetaconcordSocket implements WebSocket.Listener {
 
 	public void shutdown() {
 		shuttingDown = true;
+		console.detach();
 		scheduler.shutdownNow();
 		WebSocket ws = webSocket;
 		if (ws != null) {
@@ -134,10 +146,7 @@ public class MetaconcordSocket implements WebSocket.Listener {
 		if (shuttingDown || reconnectScheduled) return;
 		reconnectScheduled = true;
 		webSocket = null;
-		if (heartbeat != null) {
-			heartbeat.cancel(false);
-			heartbeat = null;
-		}
+		cancelTimers();
 		long delay = Math.min((long) Math.pow(2, backoff), MAX_BACKOFF_SECONDS);
 		backoff++;
 		LOGGER.info("metaconcord reconnecting in {}s", delay);
@@ -151,6 +160,29 @@ public class MetaconcordSocket implements WebSocket.Listener {
 		}
 	}
 
+	private void cancelTimers() {
+		if (heartbeat != null) {
+			heartbeat.cancel(false);
+			heartbeat = null;
+		}
+		if (statsTick != null) {
+			statsTick.cancel(false);
+			statsTick = null;
+		}
+		if (consoleTick != null) {
+			consoleTick.cancel(false);
+			consoleTick = null;
+		}
+	}
+
+	private void sendStats() {
+		try {
+			send(stats.frame());
+		} catch (Exception e) {
+			LOGGER.warn("could not build StatsPayload: {}", e.getMessage());
+		}
+	}
+
 	@Override
 	public void onOpen(WebSocket ws) {
 		webSocket = ws;
@@ -158,8 +190,15 @@ public class MetaconcordSocket implements WebSocket.Listener {
 		synchronized (sendLock) {
 			sendChain = CompletableFuture.completedFuture(null);
 		}
+		// the bridge re-subscribes on every fresh connection when it still has viewers
+		console.setSubscribed(false);
+		cancelTimers();
 		heartbeat = scheduler.scheduleAtFixedRate(
 			() -> send(""), HEARTBEAT_SECONDS, HEARTBEAT_SECONDS, TimeUnit.SECONDS);
+		statsTick = scheduler.scheduleAtFixedRate(
+			this::sendStats, 1, STATS_SECONDS, TimeUnit.SECONDS);
+		consoleTick = scheduler.scheduleAtFixedRate(
+			console::flush, CONSOLE_FLUSH_MILLIS, CONSOLE_FLUSH_MILLIS, TimeUnit.MILLISECONDS);
 		LOGGER.info("metaconcord connected to {}", endpoint);
 		sendStatusSoon();
 		sendAddonsSoon();
@@ -204,8 +243,28 @@ public class MetaconcordSocket implements WebSocket.Listener {
 
 		if ("ChatPayload".equals(name)) {
 			handleChat(data);
+		} else if ("ConsolePayload".equals(name)) {
+			handleConsole(data);
 		}
 		// unknown payloads are ignored on purpose
+	}
+
+	private void handleConsole(JsonObject data) {
+		String action = data.get("action").getAsString();
+		switch (action) {
+			case "subscribe" -> {
+				console.setSubscribed(true);
+				console.sendReplay();
+			}
+			case "unsubscribe" -> console.setSubscribed(false);
+			case "command" -> {
+				String command = data.get("command").getAsString();
+				LOGGER.info("metaconcord console: {}", command);
+				server.execute(() -> server.getCommands()
+					.performPrefixedCommand(server.createCommandSourceStack(), command));
+			}
+			default -> {}
+		}
 	}
 
 	private void handleChat(JsonObject data) {

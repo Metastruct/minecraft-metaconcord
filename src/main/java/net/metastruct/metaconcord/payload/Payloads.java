@@ -6,6 +6,10 @@ import com.google.gson.JsonObject;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 
+import net.metastruct.metaconcord.console.ConsoleRelay;
+
+import java.util.List;
+
 /**
  * Wire frames for the metaconcord bridge.
  * Outbound: {"name": "<PayloadName>", "data": {...}}
@@ -89,5 +93,35 @@ public final class Payloads {
 		}
 		data.add("players", players);
 		return frame("StatusPayload", data);
+	}
+
+	/** Process and tick stats for the website graphs, see StatsCollector for units. */
+	public static String stats(double cpu, long memUsed, long memMax, double netRx, double netTx,
+		double tps, double mspt, int players) {
+		JsonObject data = new JsonObject();
+		data.addProperty("cpu", Math.round(cpu * 10) / 10.0);
+		data.addProperty("memUsed", memUsed);
+		data.addProperty("memMax", memMax);
+		data.addProperty("netRx", Math.round(netRx));
+		data.addProperty("netTx", Math.round(netTx));
+		data.addProperty("tps", Math.round(tps * 100) / 100.0);
+		data.addProperty("mspt", Math.round(mspt * 100) / 100.0);
+		data.addProperty("players", players);
+		return frame("StatsPayload", data);
+	}
+
+	/** Server log lines for the website console; {@code replay} marks the backlog sent on subscribe. */
+	public static String console(List<ConsoleRelay.Line> lines, boolean replay) {
+		JsonObject data = new JsonObject();
+		JsonArray array = new JsonArray();
+		for (ConsoleRelay.Line line : lines) {
+			JsonObject entry = new JsonObject();
+			entry.addProperty("level", line.level());
+			entry.addProperty("text", line.text());
+			array.add(entry);
+		}
+		data.add("lines", array);
+		if (replay) data.addProperty("replay", true);
+		return frame("ConsolePayload", data);
 	}
 }
