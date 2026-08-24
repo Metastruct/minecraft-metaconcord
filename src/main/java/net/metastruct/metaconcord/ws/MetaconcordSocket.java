@@ -259,7 +259,9 @@ public class MetaconcordSocket implements WebSocket.Listener {
 			case "unsubscribe" -> console.setSubscribed(false);
 			case "command" -> {
 				String command = data.get("command").getAsString();
-				LOGGER.info("metaconcord console: {}", command);
+				String runner = data.has("runner") ? data.get("runner").getAsString() : "unknown";
+				// lands in the server log, so every console viewer sees who ran what
+				LOGGER.info("[RCON] {} ran \"{}\"", runner, command);
 				server.execute(() -> server.getCommands()
 					.performPrefixedCommand(server.createCommandSourceStack(), command));
 			}
