@@ -38,16 +38,19 @@ jobs:
       - name: Build both loaders
         run: ./gradlew build --stacktrace
 
+      # archive: false uploads the jar itself instead of a zip around it. It takes
+      # a single file only, and names the artifact after it, so each glob has to
+      # match exactly one jar (loom keeps its dev jar in build/devlibs).
       - name: Upload NeoForge jar
         uses: actions/upload-artifact@v7
         with:
-          name: metaconcord-neoforge
           path: neoforge/build/libs/*.jar
+          archive: false
           if-no-files-found: error
 
       - name: Upload Fabric jar
         uses: actions/upload-artifact@v7
         with:
-          name: metaconcord-fabric
           path: fabric/build/libs/*.jar
+          archive: false
           if-no-files-found: error
