@@ -1,0 +1,12 @@
+{
+	"required": true,
+	"package": "net.metastruct.metaconcord.fabric.mixin",
+	"compatibilityLevel": "JAVA_21",
+	"mixins": [
+		"PlayerAdvancementsMixin",
+		"ServerPlayerMixin"
+	],
+	"injectors": {
+		"defaultRequire": 1
+	}
+}

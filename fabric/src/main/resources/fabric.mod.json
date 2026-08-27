@@ -1,0 +1,18 @@
+{
+	"schemaVersion": 1,
+	"id": "metaconcord",
+	"version": "${mod_version}",
+	"name": "Metaconcord",
+	"description": "Relays chat and player events to the metaconcord Discord bridge.",
+	"license": "MIT",
+	"environment": "server",
+	"entrypoints": {
+		"server": ["net.metastruct.metaconcord.fabric.MetaconcordFabric"]
+	},
+	"mixins": ["metaconcord.mixins.json"],
+	"depends": {
+		"fabricloader": ">=0.16.0",
+		"fabric-api": "*",
+		"minecraft": ">=1.21.1 <1.22"
+	}
+}

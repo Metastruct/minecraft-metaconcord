@@ -1,0 +1,44 @@
+plugins {
+	id 'net.neoforged.moddev' version '2.0.78'
+}
+
+neoForge {
+	version = neoforge_version
+
+	runs {
+		server {
+			server()
+		}
+	}
+
+	mods {
+		metaconcord {
+			sourceSet sourceSets.main
+			sourceSet project(':common').sourceSets.main
+		}
+	}
+}
+
+dependencies {
+	compileOnly project(':common')
+}
+
+// bundle the common classes into this loader's jar
+tasks.named('compileJava') {
+	source(project(':common').sourceSets.main.allSource)
+}
+
+processResources {
+	from project(':common').sourceSets.main.resources
+
+	var replaceProperties = [
+		mod_version: mod_version,
+		minecraft_version: minecraft_version,
+		neoforge_version: neoforge_version,
+	]
+	inputs.properties replaceProperties
+
+	filesMatching('META-INF/neoforge.mods.toml') {
+		expand replaceProperties
+	}
+}

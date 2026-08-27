@@ -1,0 +1,53 @@
+name: Build
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      # v5 is the last release whose caching is MIT licensed; v6 moved it into a
+      # proprietary component that requires accepting Gradle's terms of use
+      - name: Validate Gradle wrapper
+        uses: gradle/actions/wrapper-validation@v5
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+          # caches ~/.gradle/caches, which holds the expensive parts: the NeoForm
+          # decompile of vanilla and loom's remapped jars
+          cache: gradle
+
+      - name: Build both loaders
+        run: ./gradlew build --stacktrace
+
+      - name: Upload NeoForge jar
+        uses: actions/upload-artifact@v7
+        with:
+          name: metaconcord-neoforge
+          path: neoforge/build/libs/*.jar
+          if-no-files-found: error
+
+      - name: Upload Fabric jar
+        uses: actions/upload-artifact@v7
+        with:
+          name: metaconcord-fabric
+          path: fabric/build/libs/*.jar
+          if-no-files-found: error

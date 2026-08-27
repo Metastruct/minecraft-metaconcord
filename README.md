@@ -1,6 +1,8 @@
 # minecraft-metaconcord
 
-Server-side NeoForge mod (Minecraft 1.21.1) that relays chat and player events to the [metaconcord](https://github.com/metastruct/metaconcord) bridge over WebSocket. Counterpart of [gmod-metaconcord](https://github.com/Earu/gmod-metaconcord).
+[![Build](https://github.com/Metastruct/minecraft-metaconcord/actions/workflows/build.yml/badge.svg)](https://github.com/Metastruct/minecraft-metaconcord/actions/workflows/build.yml)
+
+Server-side mod (Minecraft 1.21.1, NeoForge and Fabric) that relays chat and player events to the [metaconcord](https://github.com/metastruct/metaconcord) bridge over WebSocket. Counterpart of [gmod-metaconcord](https://github.com/Earu/gmod-metaconcord).
 
 ## What it does
 
@@ -10,12 +12,14 @@ Server-side NeoForge mod (Minecraft 1.21.1) that relays chat and player events t
 
 ## Install
 
-1. Build with `./gradlew build`, the jar is in `build/libs/`.
-2. Drop the jar in the server's `mods/` folder. Clients do not need it.
-3. Start the server once, then edit `config/metaconcord-common.toml`:
+1. Build with `./gradlew build`. Jars: `neoforge/build/libs/metaconcord-neoforge-<version>.jar` and `fabric/build/libs/metaconcord-fabric-<version>.jar`. Prebuilt jars for every commit are attached to the [build workflow runs](https://github.com/Metastruct/minecraft-metaconcord/actions/workflows/build.yml).
+2. Drop the jar for your loader in the server's `mods/` folder. The Fabric build requires [Fabric API](https://modrinth.com/mod/fabric-api).
+3. Start the server, then edit `config/metaconcord-common.toml`:
    - `endpoint`: full WebSocket URI, e.g. `wss://your-host/minecraft/ws`
-   - `token`: the shared token from the bridge's `config/minecraft.json` (leave empty if the bridge runs with an empty token, the IP allowlist still applies)
+   - `token`: the shared token from the bridge's `config/minecraft.json`
 4. Restart the server.
+
+On NeoForge `/me` is captured from the parsed command before it runs. On Fabric it is captured when the emote is broadcast. Same result on vanilla.
 
 ## Wire protocol
 
@@ -23,4 +27,6 @@ Same as gmod-metaconcord: outbound frames `{"name": "...", "data": {...}}`, inbo
 
 ## Dev
 
-`./gradlew runServer` starts a dedicated dev server (accept the EULA in `runs/server/eula.txt`). Point `endpoint` at a local bridge with `ws://localhost:3000/minecraft/ws`.
+`./gradlew :neoforge:runServer` or `./gradlew :fabric:runServer` starts a dedicated dev server (accept the EULA in `<loader>/run/eula.txt`). Point `endpoint` at a local bridge with `ws://localhost:3000/minecraft/ws`.
+
+Layout: `common/` holds the loader-independent code (socket, payloads, stats, console relay, config) and is compiled into each loader jar; `neoforge/` and `fabric/` hold the entrypoints and event wiring.

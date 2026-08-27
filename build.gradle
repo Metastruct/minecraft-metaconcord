@@ -1,42 +1,16 @@
-plugins {
-	id 'java'
-	id 'net.neoforged.moddev' version '2.0.78'
-}
+subprojects {
+	apply plugin: 'java'
 
-version = mod_version
-group = mod_group
+	version = mod_version
+	group = mod_group
 
-java {
-	toolchain {
-		languageVersion = JavaLanguageVersion.of(21)
+	base {
+		archivesName = "metaconcord-${project.name}"
 	}
-}
 
-neoForge {
-	version = neoforge_version
-
-	runs {
-		server {
-			server()
+	java {
+		toolchain {
+			languageVersion = JavaLanguageVersion.of(21)
 		}
-	}
-
-	mods {
-		metaconcord {
-			sourceSet sourceSets.main
-		}
-	}
-}
-
-processResources {
-	var replaceProperties = [
-		mod_version: mod_version,
-		minecraft_version: minecraft_version,
-		neoforge_version: neoforge_version,
-	]
-	inputs.properties replaceProperties
-
-	filesMatching('META-INF/neoforge.mods.toml') {
-		expand replaceProperties
 	}
 }

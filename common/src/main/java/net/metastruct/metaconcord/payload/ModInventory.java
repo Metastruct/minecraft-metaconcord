@@ -3,19 +3,17 @@ package net.metastruct.metaconcord.payload;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.mojang.logging.LogUtils;
-import net.neoforged.fml.ModList;
-import net.neoforged.neoforgespi.language.IModInfo;
 import org.slf4j.Logger;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
-import java.util.Optional;
+import java.util.function.Supplier;
 
 /**
  * Builds the AddonsPayload frame: every loaded mod with the identifiers the
@@ -25,8 +23,14 @@ import java.util.Optional;
 public final class ModInventory {
 	private static final Logger LOGGER = LogUtils.getLogger();
 	private static volatile String cachedFrame;
+	private static volatile Supplier<List<ModEntry>> modListSupplier = List::of;
 
 	private ModInventory() {}
+
+	/** Set once from each loader's entrypoint, before the socket connects. */
+	public static void setModListSupplier(Supplier<List<ModEntry>> supplier) {
+		modListSupplier = supplier;
+	}
 
 	public static String frame() {
 		String frame = cachedFrame;
@@ -46,22 +50,17 @@ public final class ModInventory {
 		Map<Path, Fingerprints> hashed = new HashMap<>();
 		JsonArray mods = new JsonArray();
 
-		for (IModInfo info : ModList.get().getMods()) {
+		for (ModEntry entry : modListSupplier.get()) {
 			JsonObject mod = new JsonObject();
-			mod.addProperty("modId", info.getModId());
-			mod.addProperty("displayName", info.getDisplayName());
-			mod.addProperty("version", info.getVersion().toString());
-			String description = info.getDescription();
+			mod.addProperty("modId", entry.id());
+			mod.addProperty("displayName", entry.displayName());
+			mod.addProperty("version", entry.version());
+			String description = entry.description();
 			if (description != null && !description.isBlank()) {
 				mod.addProperty("description", description.trim());
 			}
 
-			Path path = null;
-			try {
-				path = info.getOwningFile().getFile().getFilePath();
-			} catch (Exception ignored) {
-				// virtual or jar-in-jar files have no usable path
-			}
+			Path path = entry.jarPath();
 			if (path != null && Files.isRegularFile(path)) {
 				Fingerprints fp = hashed.computeIfAbsent(path, Fingerprints::of);
 				if (fp != null) {
@@ -70,9 +69,8 @@ public final class ModInventory {
 				}
 			}
 
-			configString(info, "sources").or(() -> info.getModURL().map(Object::toString))
-				.ifPresent(url -> mod.addProperty("sources", url));
-			configString(info, "issueTrackerURL").ifPresent(url -> mod.addProperty("issues", url));
+			if (entry.sources() != null) mod.addProperty("sources", entry.sources());
+			if (entry.issues() != null) mod.addProperty("issues", entry.issues());
 
 			mods.add(mod);
 		}
@@ -80,15 +78,6 @@ public final class ModInventory {
 		JsonObject data = new JsonObject();
 		data.add("mods", mods);
 		return Payloads.frame("AddonsPayload", data);
-	}
-
-	private static Optional<String> configString(IModInfo info, String key) {
-		try {
-			Optional<Object> value = info.getConfig().getConfigElement(key);
-			return value.map(Object::toString).filter(s -> !s.isBlank());
-		} catch (Exception e) {
-			return Optional.empty();
-		}
 	}
 
 	private record Fingerprints(String sha512, long murmur2) {
